@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Spam Detector v3</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* --- Light Mode (Default) --- */
+            --primary-color: #6a11cb;
+            --secondary-color: #2575fc;
+            --success-color: #00b09b;
+            --danger-color: #f85032;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --body-bg: linear-gradient(135deg, #a1c4fd, #c2e9fb, #a8edea, #fed6e3);
+            --card-bg: rgba(255, 255, 255, 0.1);
+            --card-border: rgba(255, 255, 255, 0.2);
+            --text-color: #212529;
+            --text-muted: #6c757d;
+            --input-bg: rgba(255, 255, 255, 0.5);
+            --input-border: #e9ecef;
+            --input-focus-bg: #fff;
+            --footer-bg: rgba(255, 255, 255, 0.1);
+            --history-bg: #ffffff;
+        }
+
+        /* --- ✨ NEW: Dark Mode --- */
+        body.dark-mode {
+            --primary-color: #7f5af0;
+            --secondary-color: #2a9d8f;
+            --success-color: #2dce98;
+            --danger-color: #f72585;
+            --light-color: #2b2d42;
+            --dark-color: #edf2f4;
+            --body-bg: linear-gradient(135deg, #0d1117, #161b22, #0d1117);
+            --card-bg: rgba(43, 45, 66, 0.2);
+            --card-border: rgba(141, 153, 174, 0.2);
+            --text-color: #edf2f4;
+            --text-muted: #8d99ae;
+            --input-bg: rgba(43, 45, 66, 0.5);
+            --input-border: #8d99ae;
+            --input-focus-bg: #2b2d42;
+            --footer-bg: rgba(43, 45, 66, 0.1);
+            --history-bg: #161b22;
+        }
+
+        /* --- Animation Keyframes --- */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translate3d(0, 40px, 0); }
+            to { opacity: 1; transform: translate3d(0, 0, 0); }
+        }
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale3d(0.3, 0.3, 0.3); }
+            50% { opacity: 1; }
+        }
+        @keyframes resultFlipIn {
+            from { opacity: 0; transform: perspective(1000px) rotateX(-90deg); }
+            to { opacity: 1; transform: perspective(1000px) rotateX(0deg); }
+        }
+        @keyframes backgroundPan {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        /* ✨ NEW: Spam "shake" animation */
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .shake-animation {
+            animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background: var(--body-bg);
+            background-size: 600% 600%;
+            animation: backgroundPan 30s ease infinite;
+            transition: background 1s ease, color 0.3s ease;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 800px;
+            margin-top: 3rem;
+            margin-bottom: 4rem;
+        }
+
+        /* --- Glassmorphism Card --- */
+        .card {
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease, background 0.3s ease, border 0.3s ease;
+            opacity: 0;
+            animation: fadeInUp 1s ease-out forwards;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            border-bottom: none;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            position: relative;
+            transition: background 0.3s ease;
+        }
+        
+        .card-header h2 { font-weight: 700; }
+
+        .card-body {
+            padding: 2.5rem;
+        }
+        
+        /* --- ✨ NEW: Dark Mode Toggle --- */
+        .theme-switch {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            transition: background 0.2s;
+        }
+        .theme-switch:hover { background: rgba(255,255,255,0.4); }
+        .theme-switch .fa-sun { display: none; }
+        body.dark-mode .fa-sun { display: inline-block; }
+        body.dark-mode .fa-moon { display: none; }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        
+        /* --- ✨ NEW: Textarea with Copy Button --- */
+        .textarea-wrapper {
+            position: relative;
+        }
+        .form-control {
+            border: 2px solid var(--input-border);
+            border-radius: 12px;
+            padding: 14px 18px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            background: var(--input-bg);
+            color: var(--text-color);
+            resize: none;
+        }
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.25rem rgba(106, 27, 203, 0.15);
+            background: var(--input-focus-bg);
+        }
+        .btn-copy {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .btn-copy:hover { color: var(--primary-color); }
+        
+        .char-counter {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 5px;
+            text-align: right;
+            height: 1.2em;
+        }
+        
+        .example-btn {
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 20px;
+            padding: 5px 15px;
+            margin: 5px;
+            font-size: 0.8rem;
+            color: var(--text-color);
+            transition: all 0.2s;
+        }
+        .example-btn:hover {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        /* --- ✨ NEW: In-Button Loader --- */
+        .btn-detect {
+            border: none;
+            padding: 14px 35px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-radius: 50px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            min-width: 220px; /* Ensure space for loader */
+        }
+        .btn-detect:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 20px rgba(106, 27, 203, 0.3);
+        }
+        .btn-detect:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        .btn-clear {
+            background: #6c757d;
+            color: white;
+            display: none;
+            border: none;
+            padding: 14px 35px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-radius: 50px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* --- ✨ NEW: History Button --- */
+        .btn-history {
+            background: none;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            border-radius: 50px;
+            padding: 14px 35px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-history:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* --- Result Styling --- */
+        .result {
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 25px;
+            font-weight: 500;
+            text-align: center;
+            opacity: 0;
+            display: none;
+            transform-origin: top center;
+        }
+        .result.show {
+            display: block;
+            animation: resultFlipIn 0.6s ease-out forwards;
+        }
+        .result-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            animation: zoomIn 0.5s ease-out;
+        }
+        .icon-spam { color: var(--danger-color); }
+        .icon-ham { color: var(--success-color); }
+
+        .spam {
+            background-color: #ffebee;
+            border: 2px solid var(--danger-color);
+            color: #c62828;
+        }
+        .ham {
+            background-color: #e6fffa;
+            border: 2px solid var(--success-color);
+            color: #00695c;
+        }
+        body.dark-mode .spam {
+            background-color: #4a1c22;
+            border-color: var(--danger-color);
+            color: #f7aabf;
+        }
+        body.dark-mode .ham {
+            background-color: #1e3c39;
+            border-color: var(--success-color);
+            color: #a6f0e4;
+        }
+        
+        /* ✨ NEW: "Why?" Keyword Highlighting */
+        .message-highlight mark {
+            background-color: rgba(247, 37, 133, 0.4);
+            padding: 2px 0;
+            border-radius: 3px;
+        }
+        body.dark-mode .message-highlight mark {
+            background-color: rgba(247, 37, 133, 0.6);
+        }
+
+        .confidence-meter {
+            height: 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            margin-top: 15px;
+            overflow: hidden;
+            border: 1px solid #ddd;
+        }
+        .confidence-level {
+            height: 100%;
+            width: 0;
+            transition: width 1s ease-in-out, background-color 1s ease;
+            border-radius: 5px;
+            background-color: var(--success-color);
+        }
+
+        .footer {
+            text-align: center;
+            color: var(--text-color);
+            font-size: 0.9rem;
+            margin-top: 2rem;
+            padding: 1rem;
+            background: var(--footer-bg);
+            backdrop-filter: blur(5px);
+            border-radius: 15px;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+        
+        .team-member { transition: all 0.3s ease; }
+        .team-member:hover { transform: translateY(-5px); }
+        .team-member img {
+            border: 3px solid white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .team-member .social-links a {
+            color: var(--text-muted);
+            margin: 0 5px;
+            font-size: 1.2rem;
+            transition: color 0.2s;
+        }
+        .team-member .social-links a:hover { color: var(--primary-color); }
+        .team-member strong { color: var(--text-color); }
+
+        /* --- ✨ NEW: Toast Notification Container --- */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1090;
+        }
+        
+        /* --- ✨ NEW: History Panel --- */
+        .history-panel {
+            position: fixed;
+            top: 0;
+            right: -100%; /* Start off-screen */
+            width: 350px;
+            height: 100%;
+            background: var(--history-bg);
+            box-shadow: -10px 0 30px rgba(0,0,0,0.1);
+            z-index: 1050;
+            transition: right 0.4s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--card-border);
+        }
+        .history-panel.show {
+            right: 0;
+        }
+        .history-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .history-header h4 {
+            margin: 0;
+            color: var(--text-color);
+        }
+        .history-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .history-item {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: var(--input-bg);
+            border-radius: 8px;
+            border: 1px solid var(--input-border);
+        }
+        .history-item p {
+            font-size: 0.9rem;
+            color: var(--text-color);
+            margin-bottom: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .history-item span {
+            font-weight: 600;
+        }
+        .history-item .spam { color: var(--danger-color); }
+        .history-item .ham { color: var(--success-color); }
+        .history-item-actions {
+            margin-top: 0.5rem;
+        }
+        .btn-history-reuse {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            font-size: 0.85rem;
+            padding: 0;
+        }
+        .history-footer {
+            padding: 1.5rem;
+            border-top: 1px solid var(--card-border);
+        }
+        #history-empty {
+            color: var(--text-muted);
+            text-align: center;
+            font-style: italic;
+        }
+        #history-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1040;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        #history-overlay.show {
+            display: block;
+            opacity: 1;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card" id="mainCard">
+            <div class="card-header">
+                <h2><i class="fas fa-shield-virus me-2"></i> SMS Spam Detector v3</h2>
+                <p class="mb-0">Advanced NLP-powered classification</p>
+                <button class="theme-switch" id="themeToggle" aria-label="Toggle dark mode">
+                    <i class="fas fa-moon"></i>
+                    <i class="fas fa-sun"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="message" class="form-label">Enter Message:</label>
+                    <div class="textarea-wrapper">
+                        <textarea class="form-control" id="message" rows="5"
+                                  placeholder="Type or paste your SMS message here..."></textarea>
+                        <button class="btn-copy" id="copyBtn" aria-label="Copy message text">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    <div id="charCounter" class="char-counter">0 characters</div>
+                </div>
+
+                <div class="mb-4">
+                    <small class="text-muted me-2">Try an example:</small>
+                    <div class="d-flex flex-wrap">
+                        <button class="example-btn" data-example="Hey, are you free tonight? Let's catch up.">Normal message</button>
+                        <button class="example-btn" data-example="URGENT: Your account has been compromised. Click http://bit.ly/secure-now to verify.">Spam example</button>
+                    </div>
+                </div>
+
+                <div class="text-center d-flex gap-3 justify-content-center flex-wrap">
+                    <button id="detectBtn" class="btn btn-detect">
+                        <span id="btn-text"><i class="fas fa-search me-2"></i>Check Message</span>
+                        <span id="btn-loader" class="spinner-border spinner-border-sm" style="display: none;" role="status" aria-hidden="true"></span>
+                    </button>
+                    <button id="clearBtn" class="btn btn-clear">
+                        <i class="fas fa-times me-2"></i>Clear
+                    </button>
+                    <button id="historyToggle" class="btn btn-history">
+                        <i class="fas fa-history me-2"></i>History
+                    </button>
+                </div>
+
+                <div id="result" class="result" aria-live="polite">
+                    <div id="resultIconContainer"></div>
+                    <h5 class="mb-1" id="resultTitle">Result</h5>
+                    <p id="resultText" class="mb-2 mt-1">This is a sample result message.</p>
+                    
+                    <div id="result-why" class_="mt-3" style="display: none;">
+                        <hr class="w-50 mx-auto">
+                        <p class="mb-2" id="result-why-text"></p>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-3">
+                        <small class="text-muted">Confidence (Spam Probability):</small>
+                        <small id="confidenceText" class="fw-bold">0%</small>
+                    </div>
+                    <div class="confidence-meter">
+                        <div class="confidence-level" id="confidenceMeter"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer mt-5">
+            <p class="mb-3"><b>Project Team:</b></p>
+            <div class="d-flex flex-wrap justify-content-center gap-4 mt-2">
+                <div class="text-center team-member">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Supratika" alt="Supratika" width="64" height="64" class="rounded-circle mb-2">
+                    <div><strong>Supratika</strong></div>
+                    <div class="small text-muted">22D01A6656</div>
+                    <div class="social-links">
+                        <a href="#" target="_blank" rel="noopener noreferrer" title="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                        <a href="#" target="_blank" rel="noopener noreferrer" title="GitHub"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+                <div class="text-center team-member">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Poorna" alt="Poorna" width="64" height="64" class="rounded-circle mb-2">
+                    <div><strong>Poorna</strong></div>
+                    <div class="small text-muted">22D01A6657</div>
+                    <div class="social-links">
+                        <a href="#" target="_blank" rel="noopener noreferrer" title="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                        <a href="#" target="_blank" rel="noopener noreferrer" title="GitHub"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+                <div class="text-center team-member">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Karna" alt="Karna" width="64" height="64" class="rounded-circle mb-2">
+                    <div><strong>Karna</strong></div>
+                    <div class="small text-muted">22D01A6658</div>
+                    <div class="social-links">
+                        <a href="#" target="_blank" rel="noopener noreferrer" title="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                        <a href="#" target="_blank" rel="noopener noreferrer" title="GitHub"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+                <div class="text-center team-member">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Fayaz" alt="Fayaz" width="64" height="64" class="rounded-circle mb-2">
+                    <div><strong>Fayaz</strong></div>
+                    <div class="small text-muted">22D01A6659</div>
+                    <div class="social-links">
+                        <a href="#" target="_blank" rel="noopener noreferrer" title="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                        <a href="#" target="_blank" rel="noopener noreferrer" title="GitHub"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+            </div>
+            <hr class="w-50 mx-auto my-4">
+            <p>
+                <a href="#" target="_blank" rel="noopener noreferrer" class="me-3">
+                    <i class="fab fa-github me-1"></i> View on GitHub
+                </a>
+                <a href="#" target="_blank" rel="noopener noreferrer">
+                    <i class="fas fa-file-alt me-1"></i> View Project Abstract
+                </a>
+            </p>
+        </footer>
+    </div>
+
+    <div id="history-overlay"></div>
+    <div class="history-panel" id="historyPanel">
+        <div class="history-header">
+            <h4><i class="fas fa-history me-2"></i>Analysis History</h4>
+            <button class="btn-close" id="historyClose" aria-label="Close history panel"></button>
+        </div>
+        <div class="history-body" id="historyBody">
+            <p id="history-empty">No history yet. Check a message to see it here.</p>
+            </div>
+        <div class="history-footer">
+            <button class="btn btn-sm btn-outline-danger" id="clearHistoryBtn">
+                <i class="fas fa-trash me-1"></i> Clear History
+            </button>
+        </div>
+    </div>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-danger text-white">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong class="me-auto">Error</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="errorToastBody">
+                This is a sample error message.
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- Element References ---
+            const body = document.body;
+            const messageInput = document.getElementById('message');
+            const detectBtn = document.getElementById('detectBtn');
+            const btnText = document.getElementById('btn-text');
+            const btnLoader = document.getElementById('btn-loader');
+            const clearBtn = document.getElementById('clearBtn');
+            const resultDiv = document.getElementById('result');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultText = document.getElementById('resultText');
+            const resultIconContainer = document.getElementById('resultIconContainer');
+            const resultWhy = document.getElementById('result-why');
+            const resultWhyText = document.getElementById('result-why-text');
+            const confidenceText = document.getElementById('confidenceText');
+            const confidenceMeter = document.getElementById('confidenceMeter');
+            const exampleBtns = document.querySelectorAll('.example-btn');
+            const charCounter = document.getElementById('charCounter');
+            const copyBtn = document.getElementById('copyBtn');
+            const themeToggle = document.getElementById('themeToggle');
+            const errorToastEl = document.getElementById('errorToast');
+            const errorToastBody = document.getElementById('errorToastBody');
+            const errorToast = new bootstrap.Toast(errorToastEl);
+            const historyToggle = document.getElementById('historyToggle');
+            const historyPanel = document.getElementById('historyPanel');
+            const historyOverlay = document.getElementById('history-overlay');
+            const historyClose = document.getElementById('historyClose');
+            const historyBody = document.getElementById('historyBody');
+            const historyEmpty = document.getElementById('history-empty');
+            const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+            
+            let analysisHistory = [];
+
+            // --- Initialization ---
+            loadTheme();
+            loadHistory();
+
+            // --- ✨ NEW: Theme (Dark Mode) ---
+            function loadTheme() {
+                if (localStorage.getItem('theme') === 'dark') {
+                    body.classList.add('dark-mode');
+                }
+            }
+            themeToggle.addEventListener('click', () => {
+                body.classList.toggle('dark-mode');
+                localStorage.setItem('theme', body.classList.contains('dark-mode') ? 'dark' : 'light');
+            });
+
+            // --- ✨ NEW: History Panel ---
+            function toggleHistoryPanel(show = true) {
+                historyPanel.classList.toggle('show', show);
+                historyOverlay.classList.toggle('show', show);
+            }
+            historyToggle.addEventListener('click', () => toggleHistoryPanel(true));
+            historyClose.addEventListener('click', () => toggleHistoryPanel(false));
+            historyOverlay.addEventListener('click', () => toggleHistoryPanel(false));
+            
+            function loadHistory() {
+                analysisHistory = JSON.parse(localStorage.getItem('analysisHistory')) || [];
+                renderHistory();
+            }
+            
+            function saveHistory(message, isSpam, probability) {
+                const timestamp = new Date().toISOString();
+                const historyItem = { message, isSpam, probability, timestamp };
+                
+                analysisHistory.unshift(historyItem); // Add to beginning
+                if (analysisHistory.length > 5) {
+                    analysisHistory.pop(); // Keep only last 5
+                }
+                
+                localStorage.setItem('analysisHistory', JSON.stringify(analysisHistory));
+                renderHistory();
+            }
+            
+            function renderHistory() {
+                if (analysisHistory.length === 0) {
+                    historyEmpty.style.display = 'block';
+                    historyBody.innerHTML = '';
+                    historyBody.appendChild(historyEmpty);
+                    return;
+                }
+                
+                historyEmpty.style.display = 'none';
+                historyBody.innerHTML = ''; // Clear current
+                
+                analysisHistory.forEach((item, index) => {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'history-item';
+                    
+                    const resultClass = item.isSpam ? 'spam' : 'ham';
+                    const resultIcon = item.isSpam ? 'fa-shield-virus' : 'fa-shield-alt';
+                    
+                    itemEl.innerHTML = `
+                        <p title="${item.message}">${item.message}</p>
+                        <span class="${resultClass}">
+                            <i class="fas ${resultIcon} me-1"></i>
+                            ${item.isSpam ? 'Spam' : 'Ham'} (${Math.round(item.probability * 100)}%)
+                        </span>
+                        <div class="history-item-actions">
+                            <button class="btn-history-reuse" data-index="${index}">
+                                <i class="fas fa-redo me-1"></i> Use this message
+                            </button>
+                        </div>
+                    `;
+                    historyBody.appendChild(itemEl);
+                });
+            }
+            
+            // Add event listener for reuse buttons (using event delegation)
+            historyBody.addEventListener('click', (e) => {
+                if (e.target && e.target.classList.contains('btn-history-reuse')) {
+                    const index = e.target.getAttribute('data-index');
+                    const message = analysisHistory[index].message;
+                    messageInput.value = message;
+                    messageInput.dispatchEvent(new Event('input'));
+                    toggleHistoryPanel(false); // Hide panel
+                }
+            });
+            
+            clearHistoryBtn.addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear all history?')) {
+                    analysisHistory = [];
+                    localStorage.removeItem('analysisHistory');
+                    renderHistory();
+                }
+            });
+
+            // --- Character Counter ---
+            messageInput.addEventListener('input', function() {
+                const count = this.value.length;
+                charCounter.textContent = `${count} character${count === 1 ? '' : 's'}`;
+            });
+
+            // --- Example Buttons ---
+            exampleBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    messageInput.value = this.getAttribute('data-example');
+                    messageInput.dispatchEvent(new Event('input'));
+                    messageInput.focus();
+                });
+            });
+
+            // --- ✨ NEW: Copy to Clipboard ---
+            copyBtn.addEventListener('click', () => {
+                if (!messageInput.value) return;
+                navigator.clipboard.writeText(messageInput.value)
+                    .then(() => {
+                        copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+                        setTimeout(() => copyBtn.innerHTML = '<i class="fas fa-copy"></i>', 2000);
+                    })
+                    .catch(err => console.error('Failed to copy: ', err));
+            });
+
+            // --- Clear Button ---
+            clearBtn.addEventListener('click', function() {
+                messageInput.value = '';
+                messageInput.dispatchEvent(new Event('input'));
+                resultDiv.classList.remove('show');
+                this.style.display = 'none';
+                detectBtn.style.display = 'inline-block';
+                resultWhy.style.display = 'none'; // Hide "why"
+            });
+
+            // --- ✨ UPDATED: Detect Button (with In-Button Loader) ---
+            detectBtn.addEventListener('click', function() {
+                const message = messageInput.value.trim();
+                if (!message) {
+                    showErrorToast('Please enter a message to analyze.');
+                    return;
+                }
+
+                // Start loading state
+                detectBtn.disabled = true;
+                btnText.style.display = 'none';
+                btnLoader.style.display = 'inline-block';
+                resultDiv.classList.remove('show');
+                resultWhy.style.display = 'none'; // Hide "why"
+
+                // --- ✨ MOCK FETCH: Simulating backend response ---
+                // This is where you would call your *real* API.
+                // I'm adding a "keywords" array to simulate the "Why?" feature.
+                setTimeout(() => {
+                    let mockData = {};
+                    const msgLower = message.toLowerCase();
+                    
+                    if (msgLower.includes('congratulations') || msgLower.includes('prize') || msgLower.includes('won')) {
+                        mockData = {
+                            is_spam: true,
+                            probability: Math.random() * 0.1 + 0.9, // 0.9 - 1.0
+                            keywords: ['congratulations', 'prize', 'won']
+                        };
+                    } else if (msgLower.includes('http') || msgLower.includes('urgent') || msgLower.includes('verify')) {
+                         mockData = {
+                            is_spam: true,
+                            probability: Math.random() * 0.2 + 0.75, // 0.75 - 0.95
+                            keywords: ['http', 'urgent', 'verify']
+                        };
+                    } else if (msgLower.length < 10 && msgLower.length > 0) {
+                        mockData = {
+                            is_spam: false,
+                            probability: Math.random() * 0.05, // 0.0 - 0.05
+                            keywords: []
+                        };
+                    } else {
+                        mockData = {
+                            is_spam: false,
+                            probability: Math.random() * 0.15 + 0.05, // 0.05 - 0.20
+                            keywords: []
+                        };
+                    }
+                    
+                    // --- This is the REAL fetch logic (commented out) ---
+                    /*
+                    fetch('http://sms-spam-backend:5000/detect', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: message })
+                    })
+                    .then(response => response.ok ? response.json() : Promise.reject(response))
+                    .then(data => {
+                        if (data.error) {
+                            showErrorToast(data.error);
+                            return;
+                        }
+                        showResult(message, data.is_spam, data.probability, data.keywords || []);
+                        saveHistory(message, data.is_spam, data.probability);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showErrorToast('Could not connect to the analysis server. Is it running?');
+                    })
+                    .finally(() => {
+                        // End loading state
+                        detectBtn.disabled = false;
+                        btnText.style.display = 'inline-block';
+                        btnLoader.style.display = 'none';
+                        detectBtn.style.display = 'none';
+                        clearBtn.style.display = 'inline-block';
+                    });
+                    */
+                    
+                    // --- This is the MOCK fetch logic (for demonstration) ---
+                    // Using the mockData created above
+                    showResult(message, mockData.is_spam, mockData.probability, mockData.keywords);
+                    saveHistory(message, mockData.is_spam, mockData.probability);
+                    
+                    // End loading state
+                    detectBtn.disabled = false;
+                    btnText.style.display = 'inline-block';
+                    btnLoader.style.display = 'none';
+                    detectBtn.style.display = 'none';
+                    clearBtn.style.display = 'inline-block';
+                    
+                }, 1000); // 1-second simulated delay
+            });
+            
+            // --- ✨ NEW: Error Toast Function ---
+            function showErrorToast(message) {
+                errorToastBody.textContent = message;
+                errorToast.show();
+            }
+
+            // --- ✨ UPDATED: Show Result (with "Why?" and Animations) ---
+            function showResult(message, isSpam, probability, keywords = []) {
+                resultIconContainer.innerHTML = '';
+                
+                // Reset animations
+                resultDiv.classList.remove('shake-animation');
+                
+                const confidence = Math.round(probability * 100);
+                confidenceMeter.style.width = '0%';
+                
+                resultDiv.className = `result ${isSpam ? 'spam' : 'ham'}`;
+                resultTitle.textContent = isSpam ? 'Spam Detected!' : 'Not Spam (Ham)';
+                
+                const iconClass = isSpam ? 'fa-shield-virus' : 'fa-shield-alt';
+                const iconColor = isSpam ? 'icon-spam' : 'icon-ham';
+                resultIconContainer.innerHTML = `<i class="fas ${iconClass} result-icon ${iconColor}"></i>`;
+                
+                confidenceText.textContent = `${confidence}%`;
+                
+                // "Why?" Feature: Keyword Highlighting
+                if (isSpam && keywords.length > 0) {
+                    let highlightedMessage = message;
+                    
+                    // This regex finds the keywords and wraps them in <mark>
+                    // It's case-insensitive (i) and global (g)
+                    const regex = new RegExp(`(${keywords.join('|')})`, 'gi');
+                    highlightedMessage = highlightedMessage.replace(regex, '<mark>$1</mark>');
+                    
+                    resultText.textContent = 'This message shows characteristics of spam.';
+                    resultWhyText.innerHTML = `<strong>Flagged content:</strong> "${highlightedMessage}"`;
+                    resultWhy.style.display = 'block';
+                    
+                } else {
+                    resultText.textContent = 'This message appears to be safe.';
+                    resultWhy.style.display = 'none';
+                }
+
+                setTimeout(() => {
+                    const hue = (1 - probability) * 120;
+                    confidenceMeter.style.backgroundColor = `hsl(${hue}, 80%, 50%)`;
+                    confidenceMeter.style.width = `${confidence}%`;
+                }, 100);
+
+                resultDiv.classList.add('show');
+                
+                // Add result animation
+                if (isSpam) {
+                    resultDiv.classList.add('shake-animation');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
